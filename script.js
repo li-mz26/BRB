@@ -6,10 +6,14 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next');
 const nextCtx = nextCanvas.getContext('2d');
+const holdCanvas = document.getElementById('hold');
+const holdCtx = holdCanvas.getContext('2d');
 
 const scoreEl = document.getElementById('score');
 const levelEl = document.getElementById('level');
 const linesEl = document.getElementById('lines');
+const comboEl = document.getElementById('combo');
+const bombsEl = document.getElementById('bombs');
 const restartBtn = document.getElementById('restart');
 
 const palette = {
@@ -53,14 +57,19 @@ const tetrominoes = {
 const board = createBoard();
 let player = null;
 let nextType = randomType();
+let holdType = null;
 let score = 0;
 let lines = 0;
 let level = 1;
+let combo = 0;
+let bombs = 0;
+let bombMilestone = 0;
 let dropCounter = 0;
 let dropInterval = 900;
 let lastTime = 0;
 let paused = false;
 let gameOver = false;
+let canHold = true;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -75,23 +84,26 @@ function cloneMatrix(matrix) {
   return matrix.map((row) => [...row]);
 }
 
+function createPiece(type) {
+  return {
+    type,
+    matrix: cloneMatrix(tetrominoes[type]),
+    pos: { x: Math.floor((COLS - tetrominoes[type][0].length) / 2), y: 0 }
+  };
+}
+
 function spawnPiece() {
   const type = nextType;
   nextType = randomType();
-
-  player = {
-    type,
-    matrix: cloneMatrix(tetrominoes[type]),
-    pos: { x: Math.floor(COLS / 2) - 1, y: 0 }
-  };
-
-  player.pos.x = Math.floor((COLS - player.matrix[0].length) / 2);
+  player = createPiece(type);
+  canHold = true;
 
   if (collide(board, player)) {
     gameOver = true;
   }
 
   drawNext();
+  drawHold();
 }
 
 function rotate(matrix) {
@@ -150,13 +162,30 @@ function clearLines() {
   }
 
   if (cleared > 0) {
-    const lineScore = [0, 120, 360, 620, 900][cleared] * level;
-    score += lineScore;
+    const baseScore = [0, 120, 360, 620, 900][Math.min(cleared, 4)] * level;
+    combo += 1;
+    const comboBonus = combo > 1 ? combo * 40 * level : 0;
+    score += baseScore + comboBonus;
     lines += cleared;
     level = Math.floor(lines / 12) + 1;
     dropInterval = Math.max(140, 900 - (level - 1) * 55);
-    updateStats();
+
+    const newMilestone = Math.floor(lines / 5);
+    if (newMilestone > bombMilestone) {
+      bombs += newMilestone - bombMilestone;
+      bombMilestone = newMilestone;
+    }
+  } else {
+    combo = 0;
   }
+
+  updateStats();
+}
+
+function lockPiece() {
+  merge(board, player);
+  clearLines();
+  spawnPiece();
 }
 
 function playerMove(dir) {
@@ -172,9 +201,7 @@ function playerDrop() {
   player.pos.y += 1;
   if (collide(board, player)) {
     player.pos.y -= 1;
-    merge(board, player);
-    clearLines();
-    spawnPiece();
+    lockPiece();
   }
   dropCounter = 0;
 }
@@ -185,9 +212,7 @@ function hardDrop() {
     player.pos.y += 1;
   }
   player.pos.y -= 1;
-  merge(board, player);
-  clearLines();
-  spawnPiece();
+  lockPiece();
   dropCounter = 0;
 }
 
@@ -207,6 +232,48 @@ function playerRotate() {
   }
 
   player.matrix = oldMatrix;
+}
+
+function holdPiece() {
+  if (paused || gameOver || !canHold) return;
+
+  const currentType = player.type;
+  if (holdType === null) {
+    holdType = currentType;
+    spawnPiece();
+  } else {
+    const swapType = holdType;
+    holdType = currentType;
+    player = createPiece(swapType);
+    if (collide(board, player)) {
+      gameOver = true;
+    }
+    drawHold();
+  }
+
+  canHold = false;
+}
+
+function activateBomb() {
+  if (paused || gameOver || bombs <= 0) return;
+
+  bombs -= 1;
+  const centerX = player.pos.x + Math.floor(player.matrix[0].length / 2);
+  const centerY = player.pos.y + Math.floor(player.matrix.length / 2);
+  let removed = 0;
+
+  for (let y = centerY - 2; y <= centerY + 2; y += 1) {
+    for (let x = centerX - 2; x <= centerX + 2; x += 1) {
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS && board[y][x] !== 0) {
+        board[y][x] = 0;
+        removed += 1;
+      }
+    }
+  }
+
+  score += removed * 25 * level;
+  combo = 0;
+  updateStats();
 }
 
 function drawCell(context, x, y, color, size) {
@@ -229,6 +296,19 @@ function drawCell(context, x, y, color, size) {
 
   context.fillStyle = 'rgba(255, 255, 255, 0.13)';
   context.fillRect(px + 6, py + 6, size - 12, size - 12);
+}
+
+function drawMatrix(context, matrix, offset, color, size, alpha = 1) {
+  context.save();
+  context.globalAlpha = alpha;
+  matrix.forEach((row, y) => {
+    row.forEach((value, x) => {
+      if (value !== 0) {
+        drawCell(context, x + offset.x, y + offset.y, color, size);
+      }
+    });
+  });
+  context.restore();
 }
 
 function drawBoardBackdrop() {
@@ -254,6 +334,19 @@ function drawBoardBackdrop() {
   }
 }
 
+function getGhostPosition() {
+  const ghost = {
+    matrix: player.matrix,
+    pos: { x: player.pos.x, y: player.pos.y }
+  };
+
+  while (!collide(board, ghost)) {
+    ghost.pos.y += 1;
+  }
+  ghost.pos.y -= 1;
+  return ghost.pos;
+}
+
 function drawBoard() {
   drawBoardBackdrop();
 
@@ -266,13 +359,9 @@ function drawBoard() {
   });
 
   if (!gameOver && player) {
-    player.matrix.forEach((row, y) => {
-      row.forEach((value, x) => {
-        if (value !== 0) {
-          drawCell(ctx, x + player.pos.x, y + player.pos.y, palette[player.type], BLOCK);
-        }
-      });
-    });
+    const ghostPos = getGhostPosition();
+    drawMatrix(ctx, player.matrix, ghostPos, palette[player.type], BLOCK, 0.28);
+    drawMatrix(ctx, player.matrix, player.pos, palette[player.type], BLOCK);
   }
 
   if (paused || gameOver) {
@@ -286,29 +375,34 @@ function drawBoard() {
   }
 }
 
-function drawNext() {
+function drawPreview(canvasCtx, targetType) {
   const size = 24;
-  nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-  nextCtx.fillStyle = '#f9e9eb';
-  nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+  canvasCtx.clearRect(0, 0, 120, 120);
+  canvasCtx.fillStyle = '#f9e9eb';
+  canvasCtx.fillRect(0, 0, 120, 120);
 
-  const matrix = tetrominoes[nextType];
-  const offsetX = Math.floor((nextCanvas.width / size - matrix[0].length) / 2);
-  const offsetY = Math.floor((nextCanvas.height / size - matrix.length) / 2);
+  if (!targetType) return;
 
-  matrix.forEach((row, y) => {
-    row.forEach((value, x) => {
-      if (value !== 0) {
-        drawCell(nextCtx, x + offsetX, y + offsetY, palette[nextType], size);
-      }
-    });
-  });
+  const matrix = tetrominoes[targetType];
+  const offsetX = Math.floor((120 / size - matrix[0].length) / 2);
+  const offsetY = Math.floor((120 / size - matrix.length) / 2);
+  drawMatrix(canvasCtx, matrix, { x: offsetX, y: offsetY }, palette[targetType], size);
+}
+
+function drawNext() {
+  drawPreview(nextCtx, nextType);
+}
+
+function drawHold() {
+  drawPreview(holdCtx, holdType);
 }
 
 function updateStats() {
   scoreEl.textContent = score;
   levelEl.textContent = level;
   linesEl.textContent = lines;
+  comboEl.textContent = combo;
+  bombsEl.textContent = bombs;
 }
 
 function resetGame() {
@@ -319,12 +413,17 @@ function resetGame() {
   score = 0;
   lines = 0;
   level = 1;
+  combo = 0;
+  bombs = 0;
+  bombMilestone = 0;
   dropInterval = 900;
   dropCounter = 0;
   paused = false;
   gameOver = false;
+  holdType = null;
   nextType = randomType();
   updateStats();
+  drawHold();
   spawnPiece();
 }
 
@@ -352,6 +451,8 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault();
     hardDrop();
   }
+  if (event.key.toLowerCase() === 'c') holdPiece();
+  if (event.key.toLowerCase() === 'x') activateBomb();
   if (event.key.toLowerCase() === 'p' && !gameOver) {
     paused = !paused;
   }

@@ -111,7 +111,14 @@ body {
   border-bottom: 0;
 }
 
-#next {
+.preview-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(90px, 1fr));
+}
+
+#next,
+#hold {
   border: 2px solid rgba(130, 86, 101, 0.24);
   border-radius: 10px;
   background: #fbeef0;
@@ -159,5 +166,9 @@ button:active {
 
   .side-panel {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .preview-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

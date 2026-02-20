@@ -22,11 +22,19 @@
           <div class="stat-row"><span>分数</span><strong id="score">0</strong></div>
           <div class="stat-row"><span>等级</span><strong id="level">1</strong></div>
           <div class="stat-row"><span>消行</span><strong id="lines">0</strong></div>
+          <div class="stat-row"><span>连击</span><strong id="combo">0</strong></div>
+          <div class="stat-row"><span>炸弹</span><strong id="bombs">0</strong></div>
         </div>
 
-        <div class="card">
-          <h2>下一个</h2>
-          <canvas id="next" width="120" height="120" aria-label="下一个方块预览"></canvas>
+        <div class="card preview-grid">
+          <div>
+            <h2>下一个</h2>
+            <canvas id="next" width="120" height="120" aria-label="下一个方块预览"></canvas>
+          </div>
+          <div>
+            <h2>暂存</h2>
+            <canvas id="hold" width="120" height="120" aria-label="暂存方块预览"></canvas>
+          </div>
         </div>
 
         <div class="card controls">
@@ -36,6 +44,8 @@
             <li>↑：旋转</li>
             <li>↓：加速下落</li>
             <li>空格：瞬间落地</li>
+            <li>C：暂存/交换方块（每回合一次）</li>
+            <li>X：释放粉雾炸弹（清理范围）</li>
             <li>P：暂停 / 继续</li>
           </ul>
           <button id="restart">重新开始</button>
