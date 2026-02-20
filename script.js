@@ -1,6 +1,6 @@
-const COLS = 10;
-const ROWS = 20;
-const BLOCK = 30;
+const COLS = 16;
+const ROWS = 30;
+const BLOCK = 24;
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -150,11 +150,11 @@ function clearLines() {
   }
 
   if (cleared > 0) {
-    const lineScore = [0, 100, 300, 500, 800][cleared] * level;
+    const lineScore = [0, 120, 360, 620, 900][cleared] * level;
     score += lineScore;
     lines += cleared;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(180, 900 - (level - 1) * 70);
+    level = Math.floor(lines / 12) + 1;
+    dropInterval = Math.max(140, 900 - (level - 1) * 55);
     updateStats();
   }
 }
@@ -210,18 +210,52 @@ function playerRotate() {
 }
 
 function drawCell(context, x, y, color, size) {
-  context.fillStyle = color;
-  context.fillRect(x * size, y * size, size, size);
-  context.strokeStyle = 'rgba(84, 62, 70, 0.25)';
-  context.strokeRect(x * size, y * size, size, size);
+  const px = x * size;
+  const py = y * size;
 
-  context.fillStyle = 'rgba(255, 255, 255, 0.25)';
-  context.fillRect(x * size + 2, y * size + 2, size - 4, 6);
+  context.fillStyle = color;
+  context.fillRect(px, py, size, size);
+
+  context.strokeStyle = 'rgba(84, 62, 70, 0.22)';
+  context.strokeRect(px, py, size, size);
+
+  context.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  context.fillRect(px + 2, py + 2, size - 4, 4);
+  context.fillRect(px + 2, py + 2, 4, size - 4);
+
+  context.fillStyle = 'rgba(70, 46, 56, 0.2)';
+  context.fillRect(px + size - 4, py + 4, 2, size - 6);
+  context.fillRect(px + 4, py + size - 4, size - 6, 2);
+
+  context.fillStyle = 'rgba(255, 255, 255, 0.13)';
+  context.fillRect(px + 6, py + 6, size - 12, size - 12);
+}
+
+function drawBoardBackdrop() {
+  const grid = BLOCK;
+  ctx.fillStyle = '#f9e9eb';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(153, 98, 117, 0.12)';
+  ctx.lineWidth = 1;
+
+  for (let x = 0; x <= canvas.width; x += grid) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, canvas.height);
+    ctx.stroke();
+  }
+
+  for (let y = 0; y <= canvas.height; y += grid) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(canvas.width, y + 0.5);
+    ctx.stroke();
+  }
 }
 
 function drawBoard() {
-  ctx.fillStyle = '#f9e9eb';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawBoardBackdrop();
 
   board.forEach((row, y) => {
     row.forEach((value, x) => {
@@ -246,7 +280,7 @@ function drawBoard() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 32px sans-serif';
+    ctx.font = 'bold 34px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(gameOver ? '游戏结束' : '已暂停', canvas.width / 2, canvas.height / 2);
   }
