@@ -1,0 +1,142 @@
+:root {
+  --bg: #e7d8d5;
+  --bg-soft: #f2e7e4;
+  --panel: #f7efee;
+  --line: #b88f9a;
+  --text: #5b4b52;
+  --accent: #a76a7f;
+  --accent-strong: #915267;
+  --shadow: rgba(102, 73, 84, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(151, 99, 118, 0.16) 0,
+      rgba(151, 99, 118, 0.16) 2px,
+      transparent 2px,
+      transparent 32px
+    ),
+    radial-gradient(circle at top, #f4dadd, var(--bg));
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-shell {
+  width: min(980px, 100%);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(280px, 2fr) minmax(220px, 1fr);
+}
+
+.game-panel,
+.card {
+  background: linear-gradient(180deg, #f8f1ef, var(--panel));
+  border: 2px solid rgba(130, 86, 101, 0.28);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px var(--shadow);
+}
+
+.game-panel {
+  padding: 16px;
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  color: var(--accent-strong);
+}
+
+.panel-header p {
+  margin: 6px 0 12px;
+  color: #8c6f7a;
+}
+
+#game {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 2;
+  border-radius: 12px;
+  border: 2px solid rgba(130, 86, 101, 0.25);
+  background: #fbeef0;
+  display: block;
+  margin: 0 auto;
+}
+
+.side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  padding: 14px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1.06rem;
+  color: var(--accent-strong);
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(130, 86, 101, 0.25);
+}
+
+.stat-row:last-child {
+  border-bottom: 0;
+}
+
+#next {
+  border: 2px solid rgba(130, 86, 101, 0.24);
+  border-radius: 10px;
+  background: #fbeef0;
+}
+
+.controls ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.7;
+  color: #6f5a62;
+}
+
+button {
+  margin-top: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #c8879b, var(--accent));
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  padding: 10px;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(129, 72, 90, 0.35);
+}
+
+button:hover {
+  filter: brightness(1.04);
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
