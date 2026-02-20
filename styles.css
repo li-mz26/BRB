@@ -1,13 +1,10 @@
 :root {
   --bg: #e7d8d5;
-  --bg-soft: #f2e7e4;
   --panel: #f7efee;
-  --line: #b88f9a;
   --text: #5b4b52;
   --accent: #a76a7f;
   --accent-strong: #915267;
   --shadow: rgba(102, 73, 84, 0.22);
-  --deep-shadow: rgba(66, 42, 52, 0.35);
 }
 
 * {
@@ -34,10 +31,10 @@ body {
 }
 
 .app-shell {
-  width: min(980px, 100%);
+  width: min(1080px, 100%);
   display: grid;
   gap: 20px;
-  grid-template-columns: minmax(280px, 2fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(280px, 2fr) minmax(260px, 1fr);
 }
 
 .game-panel,
@@ -90,7 +87,6 @@ body {
 
 .card {
   padding: 14px;
-  backdrop-filter: blur(1px);
 }
 
 .card h2 {
@@ -124,6 +120,13 @@ body {
   background: #fbeef0;
 }
 
+.relic-card ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.6;
+  min-height: 72px;
+}
+
 .controls ul {
   margin: 0;
   padding-left: 18px;
@@ -148,15 +151,60 @@ button {
     inset 0 -3px 10px rgba(103, 58, 73, 0.34);
 }
 
-button:hover {
-  filter: brightness(1.04);
+.relic-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(47, 26, 34, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 50;
 }
 
-button:active {
-  transform: translateY(1px);
-  box-shadow:
-    0 4px 8px rgba(129, 72, 90, 0.35),
-    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+.relic-modal.hidden {
+  display: none;
+}
+
+.relic-dialog {
+  width: min(860px, calc(100% - 30px));
+  background: linear-gradient(180deg, #fff3f5, #f8ecec);
+  border-radius: 18px;
+  border: 2px solid rgba(126, 75, 94, 0.35);
+  padding: 16px;
+  box-shadow: 0 22px 36px rgba(70, 38, 51, 0.3);
+}
+
+.relic-dialog h3 {
+  margin: 0;
+  color: var(--accent-strong);
+}
+
+.relic-dialog p {
+  margin: 8px 0 12px;
+  color: #7e646f;
+}
+
+.relic-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.relic-option {
+  border: 2px solid rgba(126, 75, 94, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, #fff, #f8edf0);
+}
+
+.relic-option b {
+  display: block;
+  color: #7f4257;
+  margin-bottom: 6px;
+}
+
+.relic-option span {
+  font-size: 0.92rem;
+  color: #6d5860;
 }
 
 @media (max-width: 860px) {
@@ -168,7 +216,7 @@ button:active {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 
-  .preview-grid {
-    grid-template-columns: 1fr 1fr;
+  .relic-options {
+    grid-template-columns: 1fr;
   }
 }

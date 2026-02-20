@@ -14,6 +14,10 @@ const levelEl = document.getElementById('level');
 const linesEl = document.getElementById('lines');
 const comboEl = document.getElementById('combo');
 const bombsEl = document.getElementById('bombs');
+const shieldsEl = document.getElementById('shields');
+const relicListEl = document.getElementById('relic-list');
+const relicModalEl = document.getElementById('relic-modal');
+const relicOptionsEl = document.getElementById('relic-options');
 const restartBtn = document.getElementById('restart');
 
 const palette = {
@@ -54,6 +58,58 @@ const tetrominoes = {
   ]
 };
 
+const relicPool = [
+  {
+    id: 'amber_score',
+    name: '琥珀计分器',
+    desc: '总得分倍率 +15%。',
+    apply(state) {
+      state.scoreMultiplier += 0.15;
+    }
+  },
+  {
+    id: 'mist_clock',
+    name: '慢时粉雾',
+    desc: '下落速度减慢（每级额外 +60ms）。',
+    apply(state) {
+      state.speedOffset += 60;
+    }
+  },
+  {
+    id: 'echo_combo',
+    name: '回响连击',
+    desc: '连击每层额外 +15 分。',
+    apply(state) {
+      state.comboBonusBase += 15;
+    }
+  },
+  {
+    id: 'bomb_core',
+    name: '炸弹核心',
+    desc: '立刻获得 1 炸弹，并扩大爆炸半径。',
+    apply(state) {
+      state.bombs += 1;
+      state.bombRadius = Math.min(4, state.bombRadius + 1);
+    }
+  },
+  {
+    id: 'hold_ribbon',
+    name: '双持丝带',
+    desc: '每回合可使用暂存次数 +1。',
+    apply(state) {
+      state.holdLimit += 1;
+    }
+  },
+  {
+    id: 'woven_shield',
+    name: '织雾护符',
+    desc: '获得 1 层护盾，抵消一次失败。',
+    apply(state) {
+      state.shields += 1;
+    }
+  }
+];
+
 const board = createBoard();
 let player = null;
 let nextType = randomType();
@@ -69,7 +125,19 @@ let dropInterval = 900;
 let lastTime = 0;
 let paused = false;
 let gameOver = false;
-let canHold = true;
+let holdUsesThisTurn = 0;
+let holdLimit = 1;
+let shields = 0;
+
+let scoreMultiplier = 1;
+let speedOffset = 0;
+let comboBonusBase = 40;
+let bombRadius = 2;
+
+let relicChoices = [];
+let inRelicSelection = false;
+let relicPickMilestone = 0;
+let acquiredRelics = [];
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -92,18 +160,30 @@ function createPiece(type) {
   };
 }
 
+function calcDropInterval() {
+  return Math.max(120, 900 - (level - 1) * 55 + speedOffset);
+}
+
 function spawnPiece() {
   const type = nextType;
   nextType = randomType();
   player = createPiece(type);
-  canHold = true;
+  holdUsesThisTurn = 0;
 
   if (collide(board, player)) {
-    gameOver = true;
+    if (shields > 0) {
+      shields -= 1;
+      for (let y = 0; y < 4; y += 1) {
+        board[y].fill(0);
+      }
+    } else {
+      gameOver = true;
+    }
   }
 
   drawNext();
   drawHold();
+  updateStats();
 }
 
 function rotate(matrix) {
@@ -145,6 +225,61 @@ function merge(arena, piece) {
   });
 }
 
+function rollRelicChoices() {
+  const shuffled = [...relicPool].sort(() => Math.random() - 0.5);
+  relicChoices = shuffled.slice(0, 3);
+
+  relicOptionsEl.innerHTML = '';
+  relicChoices.forEach((relic, i) => {
+    const item = document.createElement('article');
+    item.className = 'relic-option';
+    item.innerHTML = `<b>${i + 1}. ${relic.name}</b><span>${relic.desc}</span>`;
+    relicOptionsEl.appendChild(item);
+  });
+
+  inRelicSelection = true;
+  relicModalEl.classList.remove('hidden');
+}
+
+function applyRelicByIndex(index) {
+  if (!inRelicSelection) return;
+  const relic = relicChoices[index];
+  if (!relic) return;
+
+  const state = {
+    bombs,
+    bombRadius,
+    comboBonusBase,
+    holdLimit,
+    scoreMultiplier,
+    shields,
+    speedOffset
+  };
+  relic.apply(state);
+  bombs = state.bombs;
+  bombRadius = state.bombRadius;
+  comboBonusBase = state.comboBonusBase;
+  holdLimit = state.holdLimit;
+  scoreMultiplier = state.scoreMultiplier;
+  shields = state.shields;
+  speedOffset = state.speedOffset;
+  dropInterval = calcDropInterval();
+
+  acquiredRelics.push(relic.name);
+  renderRelics();
+  inRelicSelection = false;
+  relicModalEl.classList.add('hidden');
+  updateStats();
+}
+
+function maybeTriggerRelicChoice() {
+  const milestone = Math.floor(level / 3);
+  if (milestone > relicPickMilestone && !gameOver) {
+    relicPickMilestone = milestone;
+    rollRelicChoices();
+  }
+}
+
 function clearLines() {
   let cleared = 0;
 
@@ -164,11 +299,17 @@ function clearLines() {
   if (cleared > 0) {
     const baseScore = [0, 120, 360, 620, 900][Math.min(cleared, 4)] * level;
     combo += 1;
-    const comboBonus = combo > 1 ? combo * 40 * level : 0;
-    score += baseScore + comboBonus;
+    const comboBonus = combo > 1 ? combo * comboBonusBase * level : 0;
+    score += Math.floor((baseScore + comboBonus) * scoreMultiplier);
     lines += cleared;
+
+    const oldLevel = level;
     level = Math.floor(lines / 12) + 1;
-    dropInterval = Math.max(140, 900 - (level - 1) * 55);
+    if (level !== oldLevel) {
+      maybeTriggerRelicChoice();
+    }
+
+    dropInterval = calcDropInterval();
 
     const newMilestone = Math.floor(lines / 5);
     if (newMilestone > bombMilestone) {
@@ -189,7 +330,7 @@ function lockPiece() {
 }
 
 function playerMove(dir) {
-  if (paused || gameOver) return;
+  if (paused || gameOver || inRelicSelection) return;
   player.pos.x += dir;
   if (collide(board, player)) {
     player.pos.x -= dir;
@@ -197,7 +338,7 @@ function playerMove(dir) {
 }
 
 function playerDrop() {
-  if (paused || gameOver) return;
+  if (paused || gameOver || inRelicSelection) return;
   player.pos.y += 1;
   if (collide(board, player)) {
     player.pos.y -= 1;
@@ -207,7 +348,7 @@ function playerDrop() {
 }
 
 function hardDrop() {
-  if (paused || gameOver) return;
+  if (paused || gameOver || inRelicSelection) return;
   while (!collide(board, player)) {
     player.pos.y += 1;
   }
@@ -217,7 +358,7 @@ function hardDrop() {
 }
 
 function playerRotate() {
-  if (paused || gameOver) return;
+  if (paused || gameOver || inRelicSelection) return;
   const oldMatrix = player.matrix;
   const rotated = rotate(player.matrix);
   player.matrix = rotated;
@@ -235,7 +376,7 @@ function playerRotate() {
 }
 
 function holdPiece() {
-  if (paused || gameOver || !canHold) return;
+  if (paused || gameOver || inRelicSelection || holdUsesThisTurn >= holdLimit) return;
 
   const currentType = player.type;
   if (holdType === null) {
@@ -251,19 +392,19 @@ function holdPiece() {
     drawHold();
   }
 
-  canHold = false;
+  holdUsesThisTurn += 1;
 }
 
 function activateBomb() {
-  if (paused || gameOver || bombs <= 0) return;
+  if (paused || gameOver || inRelicSelection || bombs <= 0) return;
 
   bombs -= 1;
   const centerX = player.pos.x + Math.floor(player.matrix[0].length / 2);
   const centerY = player.pos.y + Math.floor(player.matrix.length / 2);
   let removed = 0;
 
-  for (let y = centerY - 2; y <= centerY + 2; y += 1) {
-    for (let x = centerX - 2; x <= centerX + 2; x += 1) {
+  for (let y = centerY - bombRadius; y <= centerY + bombRadius; y += 1) {
+    for (let x = centerX - bombRadius; x <= centerX + bombRadius; x += 1) {
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS && board[y][x] !== 0) {
         board[y][x] = 0;
         removed += 1;
@@ -271,7 +412,7 @@ function activateBomb() {
     }
   }
 
-  score += removed * 25 * level;
+  score += Math.floor(removed * 25 * level * scoreMultiplier);
   combo = 0;
   updateStats();
 }
@@ -293,9 +434,6 @@ function drawCell(context, x, y, color, size) {
   context.fillStyle = 'rgba(70, 46, 56, 0.2)';
   context.fillRect(px + size - 4, py + 4, 2, size - 6);
   context.fillRect(px + 4, py + size - 4, size - 6, 2);
-
-  context.fillStyle = 'rgba(255, 255, 255, 0.13)';
-  context.fillRect(px + 6, py + 6, size - 12, size - 12);
 }
 
 function drawMatrix(context, matrix, offset, color, size, alpha = 1) {
@@ -312,21 +450,20 @@ function drawMatrix(context, matrix, offset, color, size, alpha = 1) {
 }
 
 function drawBoardBackdrop() {
-  const grid = BLOCK;
   ctx.fillStyle = '#f9e9eb';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.strokeStyle = 'rgba(153, 98, 117, 0.12)';
   ctx.lineWidth = 1;
 
-  for (let x = 0; x <= canvas.width; x += grid) {
+  for (let x = 0; x <= canvas.width; x += BLOCK) {
     ctx.beginPath();
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, canvas.height);
     ctx.stroke();
   }
 
-  for (let y = 0; y <= canvas.height; y += grid) {
+  for (let y = 0; y <= canvas.height; y += BLOCK) {
     ctx.beginPath();
     ctx.moveTo(0, y + 0.5);
     ctx.lineTo(canvas.width, y + 0.5);
@@ -364,14 +501,15 @@ function drawBoard() {
     drawMatrix(ctx, player.matrix, player.pos, palette[player.type], BLOCK);
   }
 
-  if (paused || gameOver) {
+  if (paused || gameOver || inRelicSelection) {
     ctx.fillStyle = 'rgba(64, 40, 50, 0.45)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 34px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(gameOver ? '游戏结束' : '已暂停', canvas.width / 2, canvas.height / 2);
+    const text = gameOver ? '游戏结束' : inRelicSelection ? '选择遗物中' : '已暂停';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   }
 }
 
@@ -397,12 +535,27 @@ function drawHold() {
   drawPreview(holdCtx, holdType);
 }
 
+function renderRelics() {
+  relicListEl.innerHTML = '';
+  if (acquiredRelics.length === 0) {
+    relicListEl.innerHTML = '<li>暂无（3级开始出现抉择）</li>';
+    return;
+  }
+
+  acquiredRelics.slice(-6).forEach((name) => {
+    const li = document.createElement('li');
+    li.textContent = name;
+    relicListEl.appendChild(li);
+  });
+}
+
 function updateStats() {
   scoreEl.textContent = score;
   levelEl.textContent = level;
   linesEl.textContent = lines;
   comboEl.textContent = combo;
   bombsEl.textContent = bombs;
+  shieldsEl.textContent = shields;
 }
 
 function resetGame() {
@@ -416,13 +569,29 @@ function resetGame() {
   combo = 0;
   bombs = 0;
   bombMilestone = 0;
-  dropInterval = 900;
   dropCounter = 0;
   paused = false;
   gameOver = false;
   holdType = null;
+  holdUsesThisTurn = 0;
+  holdLimit = 1;
+  shields = 0;
+
+  scoreMultiplier = 1;
+  speedOffset = 0;
+  comboBonusBase = 40;
+  bombRadius = 2;
+
+  relicChoices = [];
+  inRelicSelection = false;
+  relicPickMilestone = 0;
+  acquiredRelics = [];
+  relicModalEl.classList.add('hidden');
+
   nextType = randomType();
+  dropInterval = calcDropInterval();
   updateStats();
+  renderRelics();
   drawHold();
   spawnPiece();
 }
@@ -431,7 +600,7 @@ function update(time = 0) {
   const delta = time - lastTime;
   lastTime = time;
 
-  if (!paused && !gameOver) {
+  if (!paused && !gameOver && !inRelicSelection) {
     dropCounter += delta;
     if (dropCounter > dropInterval) {
       playerDrop();
@@ -443,6 +612,15 @@ function update(time = 0) {
 }
 
 document.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+
+  if (inRelicSelection) {
+    if (['1', '2', '3'].includes(key)) {
+      applyRelicByIndex(Number(key) - 1);
+    }
+    return;
+  }
+
   if (event.key === 'ArrowLeft') playerMove(-1);
   if (event.key === 'ArrowRight') playerMove(1);
   if (event.key === 'ArrowDown') playerDrop();
@@ -451,9 +629,9 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault();
     hardDrop();
   }
-  if (event.key.toLowerCase() === 'c') holdPiece();
-  if (event.key.toLowerCase() === 'x') activateBomb();
-  if (event.key.toLowerCase() === 'p' && !gameOver) {
+  if (key === 'c') holdPiece();
+  if (key === 'x') activateBomb();
+  if (key === 'p' && !gameOver) {
     paused = !paused;
   }
 
