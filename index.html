@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>莫兰迪俄罗斯方块</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="game-panel">
+        <header class="panel-header">
+          <h1>俄罗斯方块</h1>
+          <p>莫兰迪风 · 轻复古方块拼图</p>
+        </header>
+        <canvas id="game" width="384" height="720" aria-label="俄罗斯方块游戏主画布"></canvas>
+      </section>
+
+      <aside class="side-panel">
+        <div class="card">
+          <h2>状态</h2>
+          <div class="stat-row"><span>分数</span><strong id="score">0</strong></div>
+          <div class="stat-row"><span>等级</span><strong id="level">1</strong></div>
+          <div class="stat-row"><span>消行</span><strong id="lines">0</strong></div>
+        </div>
+
+        <div class="card">
+          <h2>下一个</h2>
+          <canvas id="next" width="120" height="120" aria-label="下一个方块预览"></canvas>
+        </div>
+
+        <div class="card controls">
+          <h2>操作</h2>
+          <ul>
+            <li>← / →：移动</li>
+            <li>↑：旋转</li>
+            <li>↓：加速下落</li>
+            <li>空格：瞬间落地</li>
+            <li>P：暂停 / 继续</li>
+          </ul>
+          <button id="restart">重新开始</button>
+        </div>
+      </aside>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
